@@ -1,0 +1,116 @@
+import pygame
+import random
+import os
+import math
+#----
+running = True
+pygame.init()
+screen = pygame.display.set_mode((1080,1080))
+pygame.display.set_caption ("wheel of fortune")
+clock = pygame.time.Clock()
+r = 300
+
+base_path = os.path.dirname(os.path.abspath(__file__))
+wood_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "wood_background.jpg")).convert_alpha()), 90, 1)
+paper_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "paper_background.jpg")).convert_alpha()), 0, 1)
+battle_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "battle_background.jpg")).convert_alpha()), 0, 1)
+card_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "card_background.jpg")).convert_alpha()), 0, 1)
+trans_surf = pygame.image.load(os.path.join(base_path, "game_images", "transparent.png")).convert_alpha()
+
+def background(type, scale):
+    x = screen.get_width() / 2
+    y = screen.get_height() / 2
+    if type == "wood":
+        surface = wood_surf
+    if type == "map":
+        surface = paper_surf
+    if type == "battle":
+        surface = battle_surf
+    if type == "card":
+        surface = card_surf
+    if type == "shelf":
+        surface = shelf_surf
+    resised_surface = pygame.transform.smoothscale(surface, scale)
+    resised_rect = resised_surface.get_rect(center = (x,y))
+    screen.blit(resised_surface, resised_rect)
+
+class wheel_class(pygame.sprite.Sprite):
+    def __init__(self):
+        self.circle_drawn = False        
+        super().__init__()
+
+
+dic = {}
+
+dic[0] = {"weight": 2,
+          "value": "rare"}
+for i in range (7):
+    dic[i+1] = {"weight": 10,
+                "value": "common"}
+
+
+def angle_creation(weight_total):
+    for i in range (len(dic)):
+        if i > 1: dic[i]['degree'] = int(round(dic[i-1]['weight']/weight_total * 360) + max(0,dic[i-2]['weight']/weight_total * 360 + dic[i-2]['degree']))
+        elif i > 0: dic[i]['degree'] = int(round(dic[i-1]['weight']/weight_total * 360))
+        else:  dic[i]['degree'] = 0 #round(dic[i]['weight']/weight_total * 360)
+        dic[i]['angle'] = dic[i]['degree']/360 * 2 * math.pi
+        
+
+def wheel_create():
+    amount = len(dic)
+    weight_total = 0
+    for i in range(len(dic)):
+        weight_total += dic[i]["weight"]
+    angle_creation(weight_total)
+    base_surf = pygame.transform.smoothscale(trans_surf, (2*r, 2*r))
+    x_center = base_surf.get_width()/2
+    y_center = base_surf.get_height()/2
+    center = (x_center, y_center)
+    
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+    base_rect = base_surf.get_rect(center = (540,540))
+
+
+    for i in range (amount+1):
+        if i < amount:
+            if dic[i]['value'] == "rare": colour = "gray"
+            elif i%2 == 0: colour = "green"
+            else: colour = "yellow"
+            angle = dic[i]['weight']/weight_total * 2 * math.pi
+            for j in range(dic[i]['degree'], dic[(i+1)%amount]['degree']):
+                angle = j * 2 * math.pi / 360
+                pygame.draw.line(base_surf, colour, center, (x_center + (r-8) * math.cos(angle), y_center + (r-8) * math.sin(angle)), 10)
+
+            angle = dic[i]['angle']
+        
+            pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(angle), y_center + (r-8) * math.sin(angle)), 10)
+        else:
+            for j in range(dic[i%amount]['degree'], 360):
+                angle = j * 2 * math.pi / 360
+                if i%2 == 0: colour = "green"
+                else: colour = "yellow"
+                pygame.draw.line(base_surf, colour, center, (x_center + (r-8) * math.cos(angle), y_center + (r-8) * math.sin(angle)), 10)
+
+    pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(0), y_center + (r-8) * math.sin(0)), 10)
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+
+    print (dic)
+    return base_surf, base_rect
+
+    
+
+base_surf, base_rect = wheel_create()
+
+
+
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    background("wood", (1920,1080))
+    screen.blit(base_surf, base_rect)
+    pygame.display.update()
+    clock.tick(60)
