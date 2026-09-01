@@ -1,0 +1,207 @@
+import pygame
+import random
+import os
+import math
+#----
+running = True
+pygame.init()
+screen = pygame.display.set_mode((1080,1080))
+pygame.display.set_caption ("wheel of fortune")
+clock = pygame.time.Clock()
+r = 300
+
+base_path = os.path.dirname(os.path.abspath(__file__))
+wood_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "wood_background.jpg")).convert_alpha()), 90, 1)
+paper_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "paper_background.jpg")).convert_alpha()), 0, 1)
+battle_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "battle_background.jpg")).convert_alpha()), 0, 1)
+card_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "card_background.jpg")).convert_alpha()), 0, 1)
+trans_surf = pygame.image.load(os.path.join(base_path, "game_images", "transparent.png")).convert_alpha()
+combat_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "sword.png")).convert_alpha()), 20, 0.1)
+elite_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "doublesword.png")).convert_alpha()), 0, 0.1)
+
+def background(type, scale):
+    x = screen.get_width() / 2
+    y = screen.get_height() / 2
+    if type == "wood":
+        surface = wood_surf
+    if type == "map":
+        surface = paper_surf
+    if type == "battle":
+        surface = battle_surf
+    if type == "card":
+        surface = card_surf
+    if type == "shelf":
+        surface = shelf_surf
+    resised_surface = pygame.transform.smoothscale(surface, scale)
+    resised_rect = resised_surface.get_rect(center = (x,y))
+    screen.blit(resised_surface, resised_rect)
+
+class wheel_class(pygame.sprite.Sprite):
+    def __init__(self):
+        self.circle_drawn = False        
+        super().__init__()
+
+
+dic = {}
+
+dic[0] = {"weight": 10,
+          "value": "rare",
+          "type": "elite"}
+for i in range (8):
+    dic[i+1] = {"weight": 10,
+                "value": "common",
+                "type": "combat"}
+
+
+def angle_creation(weight_total):
+    for i in range (len(dic)):
+        dic[i]['slice'] = int(round(dic[i]['weight']/weight_total * 360))
+        if i > 0:
+            dic[i]['start'] = dic[i-1]['end']
+        else:
+            dic[i]['start'] = 0
+        dic[i]['end'] = dic[i]['start'] + dic[i]['slice']
+ 
+
+def wheel_create(type):
+    amount = len(dic)
+    weight_total = 0
+    for i in range(len(dic)):
+        weight_total += dic[i]["weight"]
+    angle_creation(weight_total)
+    base_surf = pygame.transform.smoothscale(trans_surf, (2*r, 2*r))
+    x_center = base_surf.get_width()/2
+    y_center = base_surf.get_height()/2
+    center = (x_center, y_center)
+    
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+    base_rect = base_surf.get_rect(center = (540,540))
+
+    for i in range (amount):
+        if dic[i]['value'] == "rare": colour = "gray"
+        elif i%2 == 0: colour = "green"
+        else: colour = "yellow"
+        angle = dic[i]['start'] / 360 * 2 * math.pi
+        for j in range(dic[i]['start'], dic[i]['end']):
+            ang = j * 2 * math.pi / 360
+            pygame.draw.line(base_surf, colour, center, (x_center + (r-8) * math.cos(ang), y_center - (r-8) * math.sin(ang)), 10)
+    
+        pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(angle), y_center - (r-8) * math.sin(angle)), 10)
+
+
+    pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(0), y_center - (r-8) * math.sin(0)), 10)
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+
+    if type == "image":
+        base_surf, base_rect = add_images(base_surf,base_rect, x_center, y_center)
+    if type == "text":
+        base_surf, base_rect = add_text(base_surf,base_rect, x_center, y_center)
+    return base_surf, base_rect
+
+
+    #---------------------image adding------------
+def add_images(base_surf, base_rect, x_center, y_center):
+    r = 200
+    for i in range (len(dic)):
+        if dic[i]['type'] == "combat":
+            surface = combat_surf.copy()
+        if dic[i]['type'] == "elite":
+            surface = elite_surf.copy()
+
+        degree = (dic[i]['start'] + dic[i]['end']) / 2
+        angle = degree / 180 * math.pi
+        rotated_surf = pygame.transform.rotate(surface, degree - 90)
+        rotated_rect = rotated_surf.get_rect(center = (x_center + r * math.cos(angle), y_center - r * math.sin(angle)))
+        base_surf.blit(rotated_surf,rotated_rect)
+
+    return base_surf, base_rect
+
+def add_text(base_surf, base_rect, x_center, y_center):
+    r = 150
+    for i in range (len(dic)):
+        wheel_font = pygame.font.Font(None, 40)
+        text_surf = wheel_font.render(dic[i]["type"], False, "black")
+
+        degree = (dic[i]['start'] + dic[i]['end']) / 2
+        angle = degree / 180 * math.pi
+        rotated_surf = pygame.transform.rotate(text_surf, degree)
+        rotated_rect = rotated_surf.get_rect(center = (x_center + r * math.cos(angle), y_center - r * math.sin(angle)))
+        base_surf.blit(rotated_surf,rotated_rect)
+    
+    return base_surf, base_rect
+
+base_surf, base_rect = wheel_create("text")
+
+
+class wheel_class(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.x = 0
+        self.n = 300
+        self.spinning = False
+        self.image = base_surf
+        self.rect = base_surf.get_rect(center = (540,540))
+
+    def spin(self):
+        self.image = pygame.transform.rotate(base_surf, self.x)
+        self.rect = self.image.get_rect(center = (540,540))
+        self.x += (random.uniform(1,1.1) * self.n /100)
+        self.x = self.x % 360
+        self.n -= 1
+        #test
+        for i in range (len(dic)):
+            if dic[i]['start'] < (self.x - 90)%360 < dic[i]['end']:
+                self.x + 90
+                print (dic[i]['type'])
+        if self.n <= 0: 
+            for i in range (len(dic)):
+                if dic[i]['start'] < (self.x - 90)%360 < dic[i]['end']:
+                    print (dic[i]['type'])
+            self.n = 300
+            self.spinning = False
+            self.result = True
+    
+    def button_press(self):
+        if pygame.mouse.get_pressed() == (1,0,0):
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos) and not self.spinning:
+                self.result = False
+                self.spinning = True
+
+    def update(self):
+        self.button_press()
+        if self.spinning and self.n > 0:
+            self.spin()
+
+
+def triangle():
+    width = screen.get_width() / 2
+    height = screen.get_height() / 2 - base_surf.get_height() / 2
+    triangle_points = [(width, height + 60),(width + 30, height - 80), (width - 30, height - 80)]
+    pygame.draw.polygon(screen, "gray", triangle_points, )
+    pygame.draw.polygon(screen,"black", triangle_points, 7)
+
+def wheel_result():
+    pass
+
+wheel_group = pygame.sprite.GroupSingle()
+wheel_group.add(wheel_class())
+
+wheel = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    if wheel:
+        background("wood", (1920,1080))
+        wheel_group.draw(screen)
+        wheel_group.update()
+        triangle()
+
+
+
+
+    pygame.display.update()
+    clock.tick(60)
+
