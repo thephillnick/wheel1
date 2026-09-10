@@ -1,0 +1,345 @@
+import pygame
+import random
+import os
+import math
+#----
+running = True
+pygame.init()
+screen = pygame.display.set_mode((1920,1080))
+pygame.display.set_caption ("wheel of fortune")
+clock = pygame.time.Clock()
+r = 300
+
+base_path = os.path.dirname(os.path.abspath(__file__))
+wood_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "wood_background.jpg")).convert_alpha()), 90, 1)
+paper_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "paper_background.jpg")).convert_alpha()), 0, 1)
+battle_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "battle_background.jpg")).convert_alpha()), 0, 1)
+card_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "card_background.jpg")).convert_alpha()), 0, 1)
+trans_surf = pygame.image.load(os.path.join(base_path, "game_images", "transparent.png")).convert_alpha()
+combat_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "sword.png")).convert_alpha()), 20, 0.1)
+elite_surf = pygame.transform.rotozoom((pygame.image.load(os.path.join(base_path, "game_images", "doublesword.png")).convert_alpha()), 0, 0.1)
+
+class state_class:
+    def __init__(self):
+        self.mousepressed = False
+        self.lock = False
+
+state = state_class()
+
+def background(type, scale):
+    x = screen.get_width() / 2
+    y = screen.get_height() / 2
+    if type == "wood":
+        surface = wood_surf
+    if type == "map":
+        surface = paper_surf
+    if type == "battle":
+        surface = battle_surf
+    if type == "card":
+        surface = card_surf
+    if type == "shelf":
+        surface = shelf_surf
+    resised_surface = pygame.transform.smoothscale(surface, scale)
+    resised_rect = resised_surface.get_rect(center = (x,y))
+    screen.blit(resised_surface, resised_rect)
+
+class wheel_class(pygame.sprite.Sprite):
+    def __init__(self):
+        self.circle_drawn = False        
+        super().__init__()
+
+
+dic = {}
+input_types = ["text","ratio","remove"]
+
+class input_class(pygame.sprite.Sprite):
+    def __init__(self, i, textje, typing_check, type):
+        super().__init__()
+        self.type = type
+        self.typing = typing_check
+        self.i = i
+        self.xtext = 400
+        self.xrat = 50
+        self.y = 35
+        if self.type == "text":
+            scale = (self.xtext,self.y)
+        elif self.type == "ratio":
+            scale = (self.xrat,self.y)
+        elif self.type == "remove":
+            scale = (self.y,self.y)
+        base_surf = pygame.transform.smoothscale(trans_surf, scale)
+        base_rect = base_surf.get_rect(topleft = (0,0))
+        base_surf.fill("white", base_rect)
+
+        if self.type != "remove":
+            self.text = textje
+
+            input_font = pygame.font.Font(None, 35)
+            text_surf = input_font.render(self.text, False, "black")
+            if self.type == "text":
+                text_rect = text_surf.get_rect(midleft = (10, self.y/2))
+            if self.type == "ratio":
+                text_rect = text_surf.get_rect(center = (self.xrat/2, self.y/2))
+            base_surf.blit(text_surf, text_rect)
+
+        else:
+            x = self.y
+            y = self.y
+            pygame.draw.rect(base_surf, "black", base_rect, 2)
+            pygame.draw.line(base_surf, "black", (x - 10, y - 10), (10,10) , 3)
+            pygame.draw.line(base_surf, "black", (10, y - 10), (x - 10,10), 3)
+        pygame.draw.rect(base_surf, "black", base_rect, 2)
+
+        self.image = base_surf
+        if self.type == "text":
+            self.rect = self.image.get_rect(topleft = (screen.get_width() - self.xtext - 10 - self.y, 200 + self.y*i))
+        elif self.type == "ratio":
+            self.rect = self.image.get_rect(topleft = (screen.get_width() - self.xtext - self.xrat - 10 - self.y , 200 + self.y*i))
+        elif self.type == "remove":
+            self.rect = self.image.get_rect(topleft = (screen.get_width() - 10 - self.y , 200 + self.y*i))
+
+
+    def button_press(self):
+        if pygame.mouse.get_pressed() == (1,0,0):
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos):
+                if self.type == "remove":
+                    for box in input_group:
+                        if box.i == self.i:
+                            box.kill()
+                    rebuild_input()
+                        
+                else:
+                    self.typing = True
+
+            else:
+                self.typing = False
+
+    def text_input(self, event):
+        if self.typing and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE and self.text != "":
+                self.text = self.text[:-1]
+            elif event.key == pygame.K_RETURN:
+                self.typing = False
+            elif event.unicode:
+                if self.type == "text":
+                    self.text += event.unicode
+                if self.type == "ratio" and event.unicode.isdigit():
+                    self.text += event.unicode
+
+                
+            
+            input_group.add(input_class(self.i, self.text, self.typing, self.type))
+            self.kill()
+
+
+    def update(self):
+        self.button_press()
+
+input_group = pygame.sprite.Group()
+
+def add_input_box():
+    n = 0
+    for box in input_group:
+        if box.type == "text": n += 1
+    for i in range (len(input_types)):
+        if input_types[i] == "text": text = ""
+        if input_types[i] == "ratio": text = "0"
+        input_group.add(input_class(n, text, False, input_types[i]))
+        pass
+
+add_input_box()
+n = 15
+x = 50
+y = 50
+add_surf = pygame.transform.smoothscale(trans_surf, (x,y))
+add_rect = add_surf.get_rect(center = (100,100))
+add_surf.fill("white")
+pygame.draw.rect(add_surf, "black", add_rect, 2)
+pygame.draw.line(add_surf, "black", (x/2,y/2 + n), (x/2,y/2 - n,), 6)
+pygame.draw.line(add_surf, "black", (x/2 + n, y/2), (x/2 - n, y/2), 6)
+
+def add_button():
+    screen.blit(add_surf,add_rect)
+    if event.type == pygame.MOUSEBUTTONDOWN: 
+        if add_rect.collidepoint(event.pos) and not state.lock:
+            add_input_box()
+            state.lock = True
+    if event.type == pygame.MOUSEBUTTONUP:
+        state.lock = False
+
+def rebuild_input():
+    input_list = []
+    n = 0
+    for row in input_group:
+        row.i = n
+        if row.type == "remove":
+            n += 1
+
+    n = 0
+    for row in input_group:
+        if row.i == n:
+            if row 
+        input_list.append((row.type, row.text,) )
+    for i in range (len(input_group)):
+        pass
+# een voor 1 door de rijen gaan en dar info uit halebn
+# bij text detext, bij nummer de nummer, i, etc
+
+def angle_creation(weight_total):
+    for i in range (len(dic)):
+        dic[i]['slice'] = int(round(dic[i]['weight']/weight_total * 360))
+        if i > 0:
+            dic[i]['start'] = dic[i-1]['end']
+        else:
+            dic[i]['start'] = 0
+        dic[i]['end'] = dic[i]['start'] + dic[i]['slice']
+ 
+def wheel_create(type):
+    amount = len(dic)
+    weight_total = 0
+    for i in range(len(dic)):
+        weight_total += dic[i]["weight"]
+    angle_creation(weight_total)
+    base_surf = pygame.transform.smoothscale(trans_surf, (2*r, 2*r))
+    x_center = base_surf.get_width()/2
+    y_center = base_surf.get_height()/2
+    center = (x_center, y_center)
+    
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+    base_rect = base_surf.get_rect(center = (540,540))
+
+    for i in range (amount):
+        if dic[i]['value'] == "rare": colour = "gray"
+        elif i%2 == 0: colour = "green"
+        else: colour = "yellow"
+        angle = dic[i]['start'] / 360 * 2 * math.pi
+        for j in range(dic[i]['start'], dic[i]['end']):
+            ang = j * 2 * math.pi / 360
+            pygame.draw.line(base_surf, colour, center, (x_center + (r-8) * math.cos(ang), y_center - (r-8) * math.sin(ang)), 10)
+    
+        pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(angle), y_center - (r-8) * math.sin(angle)), 10)
+
+
+    pygame.draw.line(base_surf, "black", center, (x_center + (r-8) * math.cos(0), y_center - (r-8) * math.sin(0)), 10)
+    pygame.draw.circle(base_surf, "black", center, r, 20)
+
+    if type == "image":
+        base_surf, base_rect = add_images(base_surf,base_rect, x_center, y_center)
+    if type == "text":
+        base_surf, base_rect = add_text(base_surf,base_rect, x_center, y_center)
+    return base_surf, base_rect
+
+
+    #---------------------image adding------------
+
+def add_images(base_surf, base_rect, x_center, y_center):
+    r = 200
+    for i in range (len(dic)):
+        if dic[i]['type'] == "combat":
+            surface = combat_surf.copy()
+        if dic[i]['type'] == "elite":
+            surface = elite_surf.copy()
+
+        degree = (dic[i]['start'] + dic[i]['end']) / 2
+        angle = degree / 180 * math.pi
+        rotated_surf = pygame.transform.rotate(surface, degree - 90)
+        rotated_rect = rotated_surf.get_rect(center = (x_center + r * math.cos(angle), y_center - r * math.sin(angle)))
+        base_surf.blit(rotated_surf,rotated_rect)
+
+    return base_surf, base_rect
+
+def add_text(base_surf, base_rect, x_center, y_center):
+    r = 150
+    for i in range (len(dic)):
+        wheel_font = pygame.font.Font(None, 40)
+        text_surf = wheel_font.render(dic[i]["type"], False, "black")
+
+        degree = (dic[i]['start'] + dic[i]['end']) / 2
+        angle = degree / 180 * math.pi
+        rotated_surf = pygame.transform.rotate(text_surf, degree)
+        rotated_rect = rotated_surf.get_rect(center = (x_center + r * math.cos(angle), y_center - r * math.sin(angle)))
+        base_surf.blit(rotated_surf,rotated_rect)
+    
+    return base_surf, base_rect
+
+base_surf, base_rect = wheel_create("text")
+
+
+class wheel_class(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.x = 0
+        self.n = 300
+        self.spinning = False
+        self.result = False ##
+        self.image = base_surf
+        self.rect = base_surf.get_rect(center = (screen.get_width()/2,screen.get_height()/2))
+
+    def spin(self):
+        self.image = pygame.transform.rotate(base_surf, self.x)
+        self.rect = self.image.get_rect(center=(screen.get_width()/2,screen.get_height()/2))
+        self.x += (random.uniform(1, 1.1) * self.n / 100)
+        self.x %= 360
+        self.n -= 1
+
+        if self.n <= 0:            
+            for i in range(len(dic)):
+                if dic[i]['start'] <= (90 - self.x) % 360 < dic[i]['end']:
+                    print(dic[i]['type'])
+                    
+            self.n = 300
+            self.spinning = False
+            self.result = True
+    
+    def button_press(self):
+        if pygame.mouse.get_pressed() == (1,0,0):
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos) and not self.spinning:
+                self.result = False
+                self.spinning = True
+
+
+    def update(self):
+        self.button_press()
+        if self.spinning and self.n > 0:
+            self.spin()
+
+
+def triangle():
+    width = screen.get_width() / 2
+    height = screen.get_height() / 2 - base_surf.get_height() / 2
+    triangle_points = [(width, height + 60),(width + 30, height - 80), (width - 30, height - 80)]
+    pygame.draw.polygon(screen, "gray", triangle_points, )
+    pygame.draw.polygon(screen,"black", triangle_points, 7)
+
+def wheel_result():
+    pass
+
+wheel_group = pygame.sprite.GroupSingle()
+wheel_group.add(wheel_class())
+
+input_fase = True
+
+wheel = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        for box in input_group:
+            box.text_input(event)
+    
+
+
+    if wheel:
+        background("wood", (1920,1080))
+        wheel_group.draw(screen)
+        wheel_group.update()
+        triangle()
+        input_group.draw(screen)
+        input_group.update()
+        add_button()
+
+    pygame.display.update()
+    clock.tick(60)
+
